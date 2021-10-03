@@ -27,7 +27,6 @@ Thumbs.db
 .gradle
 build/
 target/
-out/
 .idea
 *.iml
 *.ipr

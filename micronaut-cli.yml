@@ -1,0 +1,6 @@
+applicationType: default
+defaultPackage: com.example
+testFramework: junit
+sourceLanguage: kotlin
+buildTool: gradle_kotlin
+features: [annotation-api, app-name, aws-v2-sdk, gradle, http-client, junit, kotlin, kotlin-application, logback, netty-server, readme, shade, yaml]
