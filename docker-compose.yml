@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  localstack:
+    image: localstack/localstack:0.12.11
+    ports:
+      - "4566-4583:4566-4583"
+      - "8055:8080"
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - SERVICES=sqs
+      - DEFAULT_REGION=us-east-1
+    volumes:
+      - ${TMPDIR:-/tmp/localstack}:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - custom
+
+  aws-cli:
+    image: amazon/aws-cli:2.2.6
+    volumes:
+      - ./dev_env:/project/dev_env
+    environment:
+      - AWS_ACCESS_KEY_ID=aws-sqs-micronaut
+      - AWS_SECRET_ACCESS_KEY=aws-sqs-micronaut
+      - AWS_DEFAULT_REGION=us-east-1
+    entrypoint: /bin/sh -c
+    command: >
+      "
+        sleep 30
+        # Executing SQS
+        aws sqs create-queue --endpoint-url=http://localstack:4566 --queue-name local-queue;
+        aws sqs create-queue --endpoint-url=http://localstack:4566 --queue-name local-test-queue;
+      "
+    depends_on:
+      - localstack
+    networks:
+      - custom
+
+networks:
+  custom:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 120.98.99.1/24

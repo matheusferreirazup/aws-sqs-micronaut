@@ -33,6 +33,9 @@ dependencies {
     //Jackson
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.0")
 
+    //Junit
+    testImplementation("org.junit.jupiter:junit-jupiter-params")
+
     //Kotlin
     implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:${kotlinVersion}")
@@ -47,6 +50,9 @@ dependencies {
 
     //Logback
     runtimeOnly("ch.qos.logback:logback-classic")
+
+    //Await
+    testImplementation("org.awaitility:awaitility-kotlin:4.1.0")
 }
 
 

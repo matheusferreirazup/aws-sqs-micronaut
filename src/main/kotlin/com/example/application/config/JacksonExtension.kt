@@ -45,10 +45,10 @@ fun JsonNode?.toMap(): Map<Any, Any>? = this?.let {
     return JacksonExtension.jacksonObjectMapper.convertValue(this, typeRef)
 }
 
-fun <T> String.jsonToObject(t: Class<T>): T? =
+fun <T> String.jsonToObject(t: Class<T>): T =
     jacksonObjectMapper.readValue(this, t)
 
-fun <T> String.jsonToObject(typeReference: TypeReference<T>): T? =
+fun <T> String.jsonToObject(typeReference: TypeReference<T>): T =
     jacksonObjectMapper.readValue(this, typeReference)
 
 fun String.jsonToMap(): HashMap<Any, Any> {

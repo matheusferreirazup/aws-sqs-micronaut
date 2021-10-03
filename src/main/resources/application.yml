@@ -1,0 +1,15 @@
+micronaut:
+  application:
+    name: awsSqsMicronaut
+
+aws:
+  accessKeyId: ${AWS_ACCESS_KEY_ID:`aws-sqs-micronaut`}
+  secretKey: ${AWS_SECRET_ACCESS_KEY:`aws-sqs-micronaut`}
+  region: ${AWS_REGION:`us-east-1`}
+  sqs:
+    endpoint: ${AWS_SQS_ENDPOINT:`http://localhost:4566`}
+    queueName: ${AWS_SQS_QUEUE_NAME:`local-queue`}
+    queueUrl: ${AWS_SQS_QUEUE_URL:`http://localhost:4566/000000000000/local-test-queue`}
+    timePolling: ${AWS_SQS_TIME_POLLING:`35s`}
+    waitTime: ${AWS_SQS_WAIT_TIME:20}
+    initialDelay: ${AWS_SQS_INITIAL_DELAY:`5s`}

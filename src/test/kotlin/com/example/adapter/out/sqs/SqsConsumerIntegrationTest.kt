@@ -2,9 +2,11 @@ package com.example.adapter.out.sqs
 
 import com.example.adapter.out.sqs.domain.MessageVO
 import com.fasterxml.jackson.databind.exc.MismatchedInputException
-import com.fasterxml.jackson.module.kotlin.readValue
 import org.awaitility.Awaitility.await
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -19,12 +21,10 @@ import java.util.stream.Stream
 internal class SqsConsumerIntegrationTest : BaseSqsIntegrationTest() {
 
     private val sqsConsumer = applicationContext.getBean(SqsConsumer::class.java)
-    private val repository = applicationContext.getBean(ResourceRepository::class.java)
 
     @BeforeEach
-    fun clean() {
-        repository.deleteAll()
-//        deleteAllMessages()
+    fun init() {
+        deleteAllMessages()
     }
 
     @Nested
@@ -35,157 +35,83 @@ internal class SqsConsumerIntegrationTest : BaseSqsIntegrationTest() {
         @EmptySource
         fun `When message is empty should throw MismatchedInputException`(messageBody: String) {
             assertThrows(MismatchedInputException::class.java) {
-                sendMessage(JacksonExtension.jacksonObjectMapper.readValue<List<MessageVO>>(messageBody))
-                sqsConsumer.consumeResourcesQueue()
+                sendMessage(messageBody)
+                sqsConsumer.consumeQueue()
             }
-
-            assertEquals(0, repository.count())
         }
 
         @ParameterizedTest(name = "Throw MismatchedInputException when message cant deserialize (missing name attribute). Arguments: \"{arguments}\"")
         @ValueSource(
-            strings = ["[{\"ref\":1,\"type\":\"Symbol\",\"description\":\"Symbol FW3 for Itau Bank\", " +
-                    "\"parent\": {\"account::dev::e5d5cc5c-b0b0-4240-ba05-e95cfead0d87\"}}]"]
+            strings = ["{\"description\":\"my-message-description\"}"]
         )
         fun `When message cant deserialize should throw MismatchedInputException`(messageBody: String) {
             assertThrows(MismatchedInputException::class.java) {
-                sendMessage(JacksonExtension.jacksonObjectMapper.readValue<List<MessageVO>>(messageBody))
-                sqsConsumer.consumeResourcesQueue()
+                sendMessage(messageBody)
+                sqsConsumer.consumeQueue()
             }
-
-            assertEquals(0, repository.count())
         }
     }
 
     @ParameterizedTest(name = "Consume message in queue. Arguments: \"{argumentsWithNames}\"")
-    @MethodSource("buildSingleResourceVO")
-    fun `Should consume a message in SQS`(message: List<MessageVO>) {
+    @MethodSource("buildSingleMessage")
+    fun `Should consume a message in SQS`(message: MessageVO, expected: List<MessageVO>) {
         sendMessage(message)
-        sqsConsumer.consumeResourcesQueue()
-        assertNotEquals(0, repository.count())
+        val messages = sqsConsumer.consumeQueue()
+
+        assertNotNull(messages)
+
+        assertEquals(1, messages.size)
+        assertEquals(message, messages[0])
     }
 
     @ParameterizedTest(name = "Receive messages and check if they are equal. Arguments: \"{argumentsWithNames}\\")
-    @MethodSource("equalArguments")
-    fun `Should check same messages`(message: List<MessageVO>, expected: List<MessageVO>) {
+    @MethodSource("buildSingleMessage")
+    fun `Should check same messages`(message: MessageVO, expected: List<MessageVO>) {
         sendMessage(message)
 
         await().atMost(3, SECONDS)
-            .untilAsserted { assertEquals(expected, getResourcesFromQueue()) }
+            .untilAsserted { assertEquals(expected, receiveMessage()) }
     }
 
     @ParameterizedTest(name = "Receive messages and check if they are NOT equal. Arguments: \"{argumentsWithNames}\\")
     @MethodSource("notEqualArguments")
-    fun `Should check different messages`(message: List<MessageVO>, expected: List<MessageVO>) {
+    fun `Should check different messages`(message: MessageVO, expected: List<MessageVO>) {
         sendMessage(message)
 
         await().atMost(3, SECONDS)
-            .untilAsserted { assertNotEquals(expected, getResourcesFromQueue()) }
+            .untilAsserted { assertNotEquals(expected, receiveMessage()) }
     }
 
     private companion object {
-        const val data = "{\"arn\":\"my-arn\",\"containerName\":\"cartao-branco-application\",\"containerQuantity\":2}"
-
         @JvmStatic
-        fun buildSingleResourceVO() =
+        fun buildSingleMessage(): Stream<Arguments> =
             Stream.of(
                 Arguments.of(
+                    MessageVO(
+                        name = "my-message-name",
+                        description = "my-message-description"
+                    ),
                     arrayListOf(
                         MessageVO(
-                            ref = 1,
-                            type = "GROUP",
-                            name = "FW3",
-                            description = "Group FW3 for Itau Bank"
+                            name = "my-message-name",
+                            description = "my-message-description"
                         )
                     )
                 )
             )
 
         @JvmStatic
-        fun equalArguments() =
+        fun notEqualArguments(): Stream<Arguments> =
             Stream.of(
                 Arguments.of(
-                    arrayListOf(
-                        MessageVO(
-                            ref = 1,
-                            type = "GROUP",
-                            name = "FW3",
-                            description = "Group FW3 for Itau Bank",
-                            parent = "account::dev::e5d5cc5c-b0b0-4240-ba05-e95cfead0d87",
-                        ),
-                        MessageVO(
-                            ref = 2,
-                            type = "PRODUCT",
-                            name = "CartaoBranco",
-                            description = "Application of Cartao Branco",
-                            data = data.toJsonNode(),
-                            parentRef = 1
-                        )
+                    MessageVO(
+                        name = "my-message-name",
+                        description = "my-message-description"
                     ),
                     arrayListOf(
                         MessageVO(
-                            ref = 1,
-                            type = "GROUP",
-                            name = "FW3",
-                            description = "Group FW3 for Itau Bank",
-                            parent = "account::dev::e5d5cc5c-b0b0-4240-ba05-e95cfead0d87",
-                        ),
-                        MessageVO(
-                            ref = 2,
-                            type = "PRODUCT",
-                            name = "CartaoBranco",
-                            description = "Application of Cartao Branco",
-                            data = data.toJsonNode(),
-                            parentRef = 1
-                        )
-                    )
-                )
-            )
-
-        @JvmStatic
-        fun notEqualArguments() =
-            Stream.of(
-                Arguments.of(
-                    arrayListOf(
-                        MessageVO(
-                            ref = 1,
-                            type = "GROUP",
-                            name = "FW3",
-                            description = "Group FW3 for Itau Bank",
-                            parent = "account::dev::e5d5cc5c-b0b0-4240-ba05-e95cfead0d87"
-                        ),
-                        MessageVO(
-                            ref = 2,
-                            type = "PRODUCT",
-                            name = "CartaoBranco",
-                            description = "Application of Cartao Branco",
-                            data = data.toJsonNode(),
-                            parentRef = 1
-                        )
-                    ),
-                    arrayListOf(
-                        MessageVO(
-                            ref = 1,
-                            type = "GROUP",
-                            name = "FW3",
-                            description = "Group FW3 for Itau Bank",
-                            parent = "account::dev::e5d5cc5c-b0b0-4240-ba05-e95cfead0d87"
-                        ),
-                        MessageVO(
-                            ref = 2,
-                            type = "PRODUCT",
-                            name = "CartaoBranco",
-                            description = "Application of Cartao Branco",
-                            data = data.toJsonNode(),
-                            parent = "account::dev::e5d5cc5c-b0b0-4240-ba05-e95cfead0d87"
-                        ),
-                        MessageVO(
-                            ref = 3,
-                            type = "PRODUCT",
-                            name = "New Application",
-                            description = "Application of New Application",
-                            data = data.toJsonNode(),
-                            parent = "account::dev::e5d5cc5c-b0b0-4240-ba05-e95cfead0d87"
+                            name = "not-same-message-name",
+                            description = "not-same-message-description"
                         )
                     )
                 )
